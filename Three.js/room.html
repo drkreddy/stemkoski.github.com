@@ -1,0 +1,477 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+	<title>Hello World (Three.js)</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <link rel=stylesheet href="css/base.css"/>
+</head>
+<body>
+
+<script src="js/Three.js"></script>
+<script src="js/Detector.js"></script>
+<script src="js/Stats.js"></script>
+<script src="js/OrbitControls.js"></script>
+<script src="js/OBJLoader.js"></script>
+<script src="ColladaLoader.js"></script>
+<script src="js/THREEx.KeyboardState.js"></script>
+<script src="js/THREEx.FullScreen.js"></script>
+<script src="js/THREEx.WindowResize.js"></script>
+
+<!-- jQuery code to display an information button and box when clicked. -->
+<script src="js/jquery-1.9.1.js"></script>
+<script src="js/jquery-ui.js"></script>
+<link rel=stylesheet href="css/jquery-ui.css" />
+<link rel=stylesheet href="css/info.css"/>
+<script src="js/info.js"></script>
+<div id="infoButton"></div>
+<div id="infoBox" title="Demo Information">
+This three.js demo is part of a collection at
+<a href="http://stemkoski.github.io/Three.js/">http://stemkoski.github.io/Three.js/</a>
+</div>
+<!-- ------------------------------------------------------------ -->
+
+<div id="ThreeJS" style="z-index: 1; position: absolute; left:0px; top:0px"></div>
+<script>
+/*
+	Three.js "tutorials by example"
+	Author: Lee Stemkoski
+	Date: July 2013 (three.js v59dev)
+ */
+
+	
+//////////	
+// MAIN //
+//////////
+
+// standard global variables
+var container, scene, camera, renderer, controls, stats;
+var keyboard = new THREEx.KeyboardState();
+var clock = new THREE.Clock();
+
+// custom global variables
+var cube;
+
+// initialization
+init();
+
+// animation loop / game loop
+animate();
+
+///////////////
+// FUNCTIONS //
+///////////////
+			
+function init() 
+{
+	///////////
+	// SCENE //
+	///////////
+	scene = new THREE.Scene();
+
+	////////////
+	// CAMERA //
+	////////////
+	
+	// set the view size in pixels (custom or according to window size)
+	// var SCREEN_WIDTH = 400, SCREEN_HEIGHT = 300;
+	var SCREEN_WIDTH = window.innerWidth, SCREEN_HEIGHT = window.innerHeight;	
+	// camera attributes
+	var VIEW_ANGLE = 45, ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT, NEAR = 0.1, FAR = 20000;
+	// set up camera
+	camera = new THREE.PerspectiveCamera( VIEW_ANGLE, ASPECT, NEAR, FAR);
+	// add the camera to the scene
+	scene.add(camera);
+	// the camera defaults to position (0,0,0)
+	// 	so pull it back (z = 400) and up (y = 100) and set the angle towards the scene origin
+	camera.position.set(-500,100,00);
+	camera.lookAt(0,100,0);	
+	
+	//////////////
+	// RENDERER //
+	//////////////
+	
+	// create and start the renderer; choose antialias setting.
+	if ( Detector.webgl )
+		renderer = new THREE.WebGLRenderer( {antialias:true} );
+	else
+		renderer = new THREE.CanvasRenderer(); 
+	
+	renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+	
+	// attach div element to variable to contain the renderer
+	container = document.getElementById( 'ThreeJS' );
+	// alternatively: to create the div at runtime, use:
+	//   container = document.createElement( 'div' );
+	//    document.body.appendChild( container );
+	
+	// attach renderer to the container div
+	container.appendChild( renderer.domElement );
+	
+	////////////
+	// EVENTS //
+	////////////
+
+	// automatically resize renderer
+	THREEx.WindowResize(renderer, camera);
+	// toggle full-screen on given key press
+	THREEx.FullScreen.bindKey({ charCode : 'm'.charCodeAt(0) });
+	
+	//////////////
+	// CONTROLS //
+	//////////////
+
+	// move mouse and: left   click to rotate, 
+	//                 middle click to zoom, 
+	//                 right  click to pan
+	controls = new THREE.OrbitControls( camera, renderer.domElement );
+	
+	///////////
+	// STATS //
+	///////////
+	
+	// displays current and past frames per second attained by scene
+	stats = new Stats();
+	stats.domElement.style.position = 'absolute';
+	stats.domElement.style.bottom = '0px';
+	stats.domElement.style.zIndex = 100;
+	container.appendChild( stats.domElement );
+	
+	///////////
+	// LIGHT //
+	///////////
+	
+	// create a light
+	var light = new THREE.PointLight(0xffffff);
+	light.position.set(0,250,0);
+	var ambientLight = new THREE.AmbientLight(0x111111);
+	//scene.add(ambientLight);
+	
+	//////////////
+	// GEOMETRY //
+	//////////////
+		
+	// most objects displayed are a "mesh":
+	//  a collection of points ("geometry") and
+	//  a set of surface parameters ("material")	
+
+	// Sphere parameters: radius, segments along width, segments along height
+	var sphereGeometry = new THREE.SphereGeometry( 50, 32, 16 ); 
+	// use a "lambert" material rather than "basic" for realistic lighting.
+	//   (don't forget to add (at least one) light!)
+	var sphereMaterial = new THREE.MeshLambertMaterial( {color: 0x8888ff} ); 
+	var sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+	sphere.position.set(100, 50, -50);
+	//scene.add(sphere);
+	
+	// Create an array of materials to be used in a cube, one for each side
+	var cubeMaterialArray = [];
+	// order to add materials: x+,x-,y+,y-,z+,z-
+	cubeMaterialArray.push( new THREE.MeshBasicMaterial( { color: 0x888888 } ) );
+	cubeMaterialArray.push( new THREE.MeshBasicMaterial( { color: 0x8800ff } ) );
+	cubeMaterialArray.push( new THREE.MeshBasicMaterial( { color: 0x888998 } ) );
+	cubeMaterialArray.push( new THREE.MeshBasicMaterial( { color: 0x008888 } ) );
+	cubeMaterialArray.push( new THREE.MeshBasicMaterial( { color: 0x8899ff } ) );
+	cubeMaterialArray.push( new THREE.MeshBasicMaterial( { color: 0x99ffff } ) );
+	var cubeMaterials = new THREE.MeshFaceMaterial( cubeMaterialArray );
+	// Cube parameters: width (x), height (y), depth (z), 
+	//        (optional) segments along x, segments along y, segments along z
+	var cubeGeometry = new THREE.CubeGeometry( 100, 100, 100, 1, 1, 1 );
+	// using THREE.MeshFaceMaterial() in the constructor below
+	//   causes the mesh to use the materials stored in the geometry
+	cube = new THREE.Mesh( cubeGeometry, cubeMaterials );
+	cube.position.set(-100, 50, -50);
+	//scene.add( cube );		
+
+	// create a set of coordinate axes to help orient user
+	//    specify length in pixels in each direction
+	var axes = new THREE.AxisHelper(100);
+	axes.position.y=10;
+	scene.add( axes );
+
+	
+  // my own code
+
+
+	// Cube parameters: width (x), height (y), depth (z), 
+	//        (optional) segments along x, segments along y, segments along z
+	var leftOuterWall = new THREE.CubeGeometry( 400, 100, 10, 1, 1, 1 );
+	// using THREE.MeshFaceMaterial() in the constructor below
+	//   causes the mesh to use the materials stored in the geometry
+	leftWall = new THREE.Mesh( leftOuterWall, cubeMaterials );
+	leftWall.position.set(0, 50, -200);
+	leftWall.rotation.x=Math.PI;
+	scene.add( leftWall );		
+
+
+var rightOuterWall = new THREE.CubeGeometry( 400, 100, 10, 1, 1, 1 );
+	// using THREE.MeshFaceMaterial() in the constructor below
+	//   causes the mesh to use the materials stored in the geometry
+	rightWall = new THREE.Mesh( rightOuterWall, cubeMaterials );
+	rightWall.position.set(0, 50, 200);
+	scene.add( rightWall );	
+
+
+var frontOuterWall = new THREE.CubeGeometry( 390, 100, 10, 1, 1, 1 );
+	// using THREE.MeshFaceMaterial() in the constructor below
+	//   causes the mesh to use the materials stored in the geometry
+	frontWall = new THREE.Mesh( frontOuterWall, cubeMaterials );
+	frontWall.position.set(195, 50, 0);
+	frontWall.rotation.y=Math.PI / 2;
+	scene.add( frontWall );	
+
+var backOuterWall = new THREE.CubeGeometry( 350, 100, 10, 1, 1, 1 );
+
+		backWall = new THREE.Mesh( backOuterWall, cubeMaterials );
+	backWall.position.set(-195, 50, -20);
+	backWall.rotation.y=-Math.PI / 2;
+	//backWall.rotation.z=Math.PI/2+40 ;
+
+	scene.add( backWall );	
+
+
+var innerWall1G = new THREE.CubeGeometry( 165, 100, 2, 1, 1, 1 );
+
+		innerWall1 = new THREE.Mesh( innerWall1G, cubeMaterials );
+	innerWall1.position.set(0, 50,-113 );
+	innerWall1.rotation.y=-Math.PI / 2;
+	//backWall.rotation.z=Math.PI/2+40 ;
+
+	scene.add( innerWall1 );	
+
+
+	var innerWall2G = new THREE.CubeGeometry( 165, 100, 2, 1, 1, 1 );
+
+		innerWall2 = new THREE.Mesh( innerWall2G, cubeMaterials );
+	innerWall2.position.set(0, 50,113 );
+	innerWall2.rotation.y=-Math.PI / 2;
+	scene.add( innerWall2 );	
+
+
+	var innerWall3G = new THREE.CubeGeometry( 135, 100, 2, 1, 1, 1 );
+	innerWall3 = new THREE.Mesh( innerWall3G, cubeMaterials);
+	innerWall3.position.set(-125, 50,0 );
+	//innerWall3.rotation.y=-Math.PI / 2;
+	scene.add( innerWall3 );	
+
+
+	var innerWall4G = new THREE.CubeGeometry( 135, 100, 2, 1, 1, 1 );
+	innerWall4 = new THREE.Mesh( innerWall4G, cubeMaterials);
+	innerWall4.position.set(125, 50,-30 );
+	//innerWall3.rotation.y=-Math.PI / 2;
+	scene.add( innerWall4 );	
+
+	var innerWall5G = new THREE.CubeGeometry( 135, 100, 2, 1, 1, 1 );
+	innerWall5 = new THREE.Mesh( innerWall5G, cubeMaterials);
+	innerWall5.position.set(125, 50,30 );
+	//innerWall3.rotation.y=-Math.PI / 2;
+	scene.add( innerWall5 );	
+
+
+
+
+
+// Alternatively, to parse a previously loaded JSON structure
+//var object = loader.parse( a_json_object );
+
+//scene.add( object );
+
+var loader = new THREE.ColladaLoader();
+
+loader.load( 'bed.dae', function(geometry) {
+            dae = geometry.scene;
+            dae.position.x=90;
+            dae.position.z=-120;
+            dae.scale.x=40;
+            dae.scale.y=50;
+            dae.scale.z=40;
+            dae.rotation.x=-Math.PI/2;
+            dae.rotation.z=-Math.PI/2;
+            
+            var bed2=dae.clone();
+         
+            bed2.position.z=120;
+
+            bed2.rotation.z=Math.PI/2;
+            scene.add(bed2);
+            scene.add(dae);
+
+
+        });
+
+        loader.load( 'rack.dae', function(geometry) {
+            dae = geometry.scene;
+            dae.position.x=180;
+            dae.position.z=-132;
+            dae.scale.x=100;
+            dae.scale.y=40;
+            dae.scale.z=40;
+            dae.rotation.x=-Math.PI/2;
+            dae.rotation.z=-Math.PI/2;            
+            var bed2=dae.clone();         
+            bed2.position.z=130;
+            bed2.rotation.z=Math.PI/2;
+            scene.add(bed2);
+            scene.add(dae);
+        });
+       loader.load( 'Sofa3.dae', function(geometry) {
+            dae = geometry.scene;
+            dae.position.x=-110;
+            dae.position.z=20;
+            dae.scale.x=40;
+            dae.scale.y=40;
+            dae.scale.z=40;
+            dae.rotation.x=-Math.PI/2;
+            dae.rotation.z=-Math.PI/2;
+
+            var sofa2 = dae.clone();
+            sofa2.position.z=90;
+            sofa2.rotation.z=2*Math.PI;
+            sofa2.position.x=-170;
+            scene.add(sofa2);            
+           
+            scene.add(dae);
+        });
+
+
+      loader.load( 'table1.dae', function(geometry) {
+            dae = geometry.scene;
+            dae.position.x=-110;
+            dae.position.z=85;
+            dae.scale.x=40;
+            dae.scale.y=50;
+            dae.scale.z=40;
+            dae.rotation.x=-Math.PI/2;
+                      
+           
+            scene.add(dae);
+        });
+
+           loader.load( 'kamode.dae', function(geometry) {
+            dae = geometry.scene;
+            dae.position.x=170;
+            dae.position.z=0;
+            dae.scale.x=40;
+            dae.scale.y=50;
+            dae.scale.z=40;
+            dae.rotation.x=-Math.PI/2;
+            dae.rotation.z=3*Math.PI/2;
+                      
+           
+            scene.add(dae);
+        });
+        //images
+
+        var img = new THREE.MeshBasicMaterial({ //CHANGED to MeshBasicMaterial
+        map:THREE.ImageUtils.loadTexture('img/lava.jpg')
+    });
+    img.map.needsUpdate = true; //ADDED
+
+    // plane
+    var plane = new THREE.Mesh(new THREE.PlaneGeometry(100, 100),img);
+    plane.overdraw = true;
+    plane.rotation.x=Math.PI;
+    scene.add(plane);
+
+
+var lavaText = new THREE.ImageUtils.loadTexture( 'images/lava.jpg' );
+	lavaText.wrapS = lavaText.wrapT = THREE.RepeatWrapping; 
+	lavaText.repeat.set( 1, 1 );
+	// DoubleSide: render texture on both sides of mesh
+	var lavaMaterial = new THREE.MeshBasicMaterial( { map: lavaText, side: THREE.DoubleSide } );
+	var lavaGeometry = new THREE.PlaneGeometry( 60, 30, 1,1 );
+	var lava = new THREE.Mesh(lavaGeometry, lavaMaterial);
+	lava.position.y = 60;
+	lava.position.z = 110;
+	lava.position.x = -4;
+	lava.rotation.y=Math.PI/2;
+	
+	scene.add(lava);
+
+
+
+
+
+  //end of my code
+
+
+	///////////
+	// FLOOR //
+	///////////
+	
+	// note: 4x4 checkboard pattern scaled so that each square is 25 by 25 pixels.
+	var floorTexture = new THREE.ImageUtils.loadTexture( 'images/tiles.jpeg' );
+	floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping; 
+	floorTexture.repeat.set( 1, 1 );
+	// DoubleSide: render texture on both sides of mesh
+	var floorMaterial = new THREE.MeshBasicMaterial( { map: floorTexture, side: THREE.DoubleSide } );
+	var floorGeometry = new THREE.PlaneGeometry( 500, 500, 1,1 );
+	var floor = new THREE.Mesh(floorGeometry, floorMaterial);
+	floor.position.y = -0.5;
+	floor.rotation.x = Math.PI / 2;
+	scene.add(floor);
+	
+	/////////
+	// SKY //
+	/////////
+	
+	// recommend either a skybox or fog effect (can't use both at the same time) 
+	// without one of these, the scene's background color is determined by webpage background
+
+	// make sure the camera's "far" value is large enough so that it will render the skyBox!
+	var skyBoxGeometry = new THREE.CubeGeometry( 10000, 10000, 10000 );
+	// BackSide: render faces from inside of the cube, instead of from outside (default).
+	var skyBoxMaterial = new THREE.MeshBasicMaterial( { color: 0x999999, side: THREE.BackSide } );
+	var skyBox = new THREE.Mesh( skyBoxGeometry, skyBoxMaterial );
+	// scene.add(skyBox);
+	
+	// fog must be added to scene before first render
+	scene.fog = new THREE.FogExp2( 0x000000, 0.00025 );
+}
+
+function animate() 
+{
+    requestAnimationFrame( animate );
+	render();		
+	update();
+}
+
+function update()
+{
+	// delta = change in time since last call (in seconds)
+	var delta = clock.getDelta(); 
+	var moveDistance = 50 * clock.getDelta();
+	var rotateAngle = Math.PI/8; 
+
+	if ( keyboard.pressed("a") ){
+		//camera.translateX	( -10 );
+		camera.rotateOnAxis( new THREE.Vector3(0,1,0), rotateAngle);
+		console.log(camera);
+	}
+	if ( keyboard.pressed("d") )
+		camera.translateX( 10 );
+	if ( keyboard.pressed("w") )
+		camera.position.z=camera.position.z-10;
+	if ( keyboard.pressed("s") )
+		camera.translateX( 5 );
+
+	// functionality provided by THREEx.KeyboardState.js
+	
+
+	if ( keyboard.pressed("2") )
+		document.getElementById('message').innerHTML = ' Have a nice day! - 2 ';	
+		
+	controls.update();
+	stats.update();
+}
+
+function render() 
+{	
+	renderer.render( scene, camera );
+}
+
+</script>
+<div id='message'></div>
+</body>
+</html>
